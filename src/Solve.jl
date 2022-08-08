@@ -13,7 +13,7 @@ function eig(H::Ham; neig=-1)
     
 
     if neig == -1
-        neig = min(10, H.dim-1)
+        neig = min(4, H.dim-1)
     end
 
     vals, vects = eigs(H.H, nev = neig, which = :SR)

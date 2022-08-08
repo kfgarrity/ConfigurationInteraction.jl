@@ -3,6 +3,7 @@ module SetupModel
 
 using LinearAlgebra
 using SparseArrays
+using Base.Threads
 
 struct Ham
 N::Int64
@@ -23,10 +24,12 @@ end
 
 function makeham(N, nup, ndn;t = -1.0,  U = 0.0)
 
-
-    ind2codeUP, code2indUP =  setup_code(N,nup)
-    ind2codeDN, code2indDN =  setup_code(N,ndn)
-
+    println("setup_code")
+    @time begin
+        ind2codeUP, code2indUP =  setup_code(N,nup)
+        ind2codeDN, code2indDN =  setup_code(N,ndn)
+    end
+    
     Lup  = length(ind2codeUP)
     Ldn  = length(ind2codeDN)
 
@@ -34,9 +37,11 @@ function makeham(N, nup, ndn;t = -1.0,  U = 0.0)
     code2ind = Dict{Vector{Bool}, Int64}()
 
 #    println(keys(
+
     
     c=0
-    for iup = 1:Lup
+    println("for loop")
+    @time for iup = 1:Lup
         for idn = 1:Ldn
             v = zeros(Bool, 2*N)
             #println("i $iup $idn $c")
@@ -50,10 +55,12 @@ function makeham(N, nup, ndn;t = -1.0,  U = 0.0)
 
     H = Ham(N, nup, ndn,c, ind2code, code2ind, spzeros(c,c))
 
-    if abs(U) > 1e-16
+    println("add U")
+    @time if abs(U) > 1e-16
         addU(H, U)
     end
-    if abs(t) > 1e-16
+    println("add KE")
+    @time if abs(t) > 1e-16
         addKE(H, t)
     end
 
@@ -92,22 +99,35 @@ end
 
 function addU(H::Ham, U)
 
+    toadd = Int64[]
+    toaddval = Float64[]
     for i = 1:H.dim
 
         v = H.ind2code[i]
         s = sum(v[1:H.N] .&& v[H.N+1:end])
         if s > 0
-            H.H[i,i] += U * s
+#            H.H[i,i] += U * s
+            push!(toadd, i)
+            push!(toaddval, U * s)
         end
     end
-    
+    t = sparse(toadd, toadd, toaddval)
+    H.H[1:size(t)[1], 1:size(t)[2]] += t
     
 end
 
 function addKE(H, t)
 
     vtemp = deepcopy(H.ind2code[1])
-    
+#    VTEMP = zeros(typeof(vtempX[1]), length(vtempX), nthreads())
+#    for i = 1:nthreads()
+#        push!(VTEMP, deepcopy(vtemp))
+#    end
+
+    toadd1 = Int64[]
+    toadd2 = Int64[]
+    toaddval = Float64[]
+
     for sp = 1:2
         spf = (sp-1)*H.N        
         for i = 1:H.dim
@@ -115,23 +135,42 @@ function addKE(H, t)
             
             for nind = 1:H.N-1
                 if (v[spf + nind] == 0 && v[spf + nind+1] == 1) || (v[spf+ nind] == 1 && v[spf + nind+1] == 0)
-                    vtemp .= v
-                    vtemp[spf + nind] = mod(vtemp[spf + nind] + 1, 2)
+            #        id = threadid()
+                    #vtemp = VTEMP[:,id]
+                    
+                    vtemp[:] .= v
+                   vtemp[spf + nind] = mod(vtemp[spf + nind] + 1, 2)
                     vtemp[spf + nind + 1] = mod(vtemp[spf + nind + 1] + 1, 2)
-                    i2 = H.code2ind[vtemp]
-
+                    i2 = H.code2ind[vtemp[:]]
+#
                     if v[spf + nind] == 0
                         thesign = (-1)^sum(v[spf .+ (1:nind)])
                     else
                         thesign = (-1)^sum(v[spf .+ (1:nind-1)])
                     end                        
-                        
-                    H.H[i, i2] += t/2.0 * thesign
-                    H.H[i2, i] += t/2.0 * thesign
+
+                    push!(toadd1, i)
+                    push!(toadd2, i2)
+                    push!(toaddval, t/2.0 * thesign)
+                    #
+#                    println("id $id i $i i2 $i2 ", i2 > H.dim , " " , t/2.0 * thesign)
+#                    H.H[i, i2] += t/2.0 * thesign
+#                    H.H[i2, i] += t/2.0 * thesign
+                    
                 end
             end
         end
     end
+
+    t1 = sparse(toadd1, toadd2, toaddval)
+    t2 = sparse(toadd2, toadd1, toaddval)
+#    println(typeof(t1))
+#    println(size(t1))
+    H.H[1:size(t1)[1], 1:size(t1)[2]] += t1
+    H.H[1:size(t2)[1], 1:size(t2)[2]] += t2
+    
+    
+    
 end
 
 
