@@ -5,6 +5,8 @@ using LinearAlgebra
 
 using ..SetupModel:Ham
 
+
+#simple arpack wrapper
 function eig(H::Ham; neig=-1)
 
     if H.dim < 100

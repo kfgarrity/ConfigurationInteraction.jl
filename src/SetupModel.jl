@@ -24,8 +24,8 @@ end
 
 function makeham(N, nup, ndn;t = -1.0,  U = 0.0)
 
-    println("setup_code")
-    @time begin
+#    println("setup_code")
+    begin
         ind2codeUP, code2indUP =  setup_code(N,nup)
         ind2codeDN, code2indDN =  setup_code(N,ndn)
     end
@@ -40,8 +40,8 @@ function makeham(N, nup, ndn;t = -1.0,  U = 0.0)
 
     
     c=0
-    println("for loop")
-    @time for iup = 1:Lup
+    #println("for loop")
+    for iup = 1:Lup
         for idn = 1:Ldn
             v = zeros(Bool, 2*N)
             #println("i $iup $idn $c")
@@ -55,12 +55,12 @@ function makeham(N, nup, ndn;t = -1.0,  U = 0.0)
 
     H = Ham(N, nup, ndn,c, ind2code, code2ind, spzeros(c,c))
 
-    println("add U")
-    @time if abs(U) > 1e-16
+    #    println("add U")
+    if abs(U) > 1e-16
         addU(H, U)
     end
-    println("add KE")
-    @time if abs(t) > 1e-16
+    #println("add KE")
+    if abs(t) > 1e-16
         addKE(H, t)
     end
 
@@ -75,6 +75,16 @@ function setup_code(N,n)
     ind2code = Dict{Int64, Vector{Bool}}()
     code2ind = Dict{Vector{Bool}, Int64}()
 
+    if N <= 0
+        println("N, $N, must be >= 1")
+    end
+    
+    if 2^N == 0
+        println("N too large $N")
+    end
+    
+
+    #this can be done smarter, instead here we make everything and test.
     for i = 0:2^N-1
         #            println("$i ", Base.digits(i, base=2) )
 
@@ -111,6 +121,7 @@ function addU(H::Ham, U)
             push!(toaddval, U * s)
         end
     end
+    #add to sparse matrix using vectorization, much faster
     t = sparse(toadd, toadd, toaddval)
     H.H[1:size(t)[1], 1:size(t)[2]] += t
     
@@ -139,10 +150,11 @@ function addKE(H, t)
                     #vtemp = VTEMP[:,id]
                     
                     vtemp[:] .= v
-                   vtemp[spf + nind] = mod(vtemp[spf + nind] + 1, 2)
+                    vtemp[spf + nind] = mod(vtemp[spf + nind] + 1, 2)
                     vtemp[spf + nind + 1] = mod(vtemp[spf + nind + 1] + 1, 2)
                     i2 = H.code2ind[vtemp[:]]
-#
+                    #
+                    #fermion sign rules
                     if v[spf + nind] == 0
                         thesign = (-1)^sum(v[spf .+ (1:nind)])
                     else
@@ -153,7 +165,8 @@ function addKE(H, t)
                     push!(toadd2, i2)
                     push!(toaddval, t/2.0 * thesign)
                     #
-#                    println("id $id i $i i2 $i2 ", i2 > H.dim , " " , t/2.0 * thesign)
+
+                    #this is very slow, so we add in vector form
 #                    H.H[i, i2] += t/2.0 * thesign
 #                    H.H[i2, i] += t/2.0 * thesign
                     
@@ -162,6 +175,8 @@ function addKE(H, t)
         end
     end
 
+    #we add to sparse matricies using vector form.
+    
     t1 = sparse(toadd1, toadd2, toaddval)
     t2 = sparse(toadd2, toadd1, toaddval)
 #    println(typeof(t1))
