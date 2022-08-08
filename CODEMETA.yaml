@@ -73,7 +73,7 @@ themes:
   #     - Chemical engineering and processing
   #     - Chemical thermodynamics and chemical properties
   #     - Molecular characterization
-  #     - Theoretical chemistry and modeling
+       - Theoretical chemistry and modeling
   #     - Thermochemical properties
   #
   # - Electronics
@@ -212,7 +212,7 @@ themes:
   #         - Mechanical properties
   #         - Thermal properties
   #     - Metals
-  #     - Modeling and computational material science
+       - Modeling and computational material science
   #     - Polymers
   #     - Superconductors
   #
@@ -271,7 +271,7 @@ themes:
   # - Physics
   #     - Atomic, molecular and quantum
   #     - Biological physics
-  #     - Condensed matter
+       - Condensed matter
   #     - Electron physics
   #     - Magnetics
   #     - Nuclear physics
