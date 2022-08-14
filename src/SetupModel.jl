@@ -6,13 +6,13 @@ using SparseArrays
 using Base.Threads
 
 struct Ham
-N::Int64
-nup::Int64
-ndn::Int64
-dim::Int64
-ind2code::Dict{Int64, Vector{Bool}}
-code2ind::Dict{Vector{Bool}, Int64}
-H::SparseMatrixCSC{Float64, Int64}
+    N::Int64
+    nup::Int64
+    ndn::Int64
+    dim::Int64
+    ind2code::Dict{Int64, Vector{Bool}}
+    code2ind::Dict{Vector{Bool}, Int64}
+    H::SparseMatrixCSC{Float64, Int64}
 end
 
 Base.show(io::IO, H::Ham) = begin
@@ -50,7 +50,7 @@ function makeham(N, nup, ndn;t = -1.0,  U = 0.0)
             c+=1
             ind2code[c] = v
             code2ind[v] = c
-        end
+(        end
     end
 
     H = Ham(N, nup, ndn,c, ind2code, code2ind, spzeros(c,c))
