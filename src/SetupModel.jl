@@ -24,7 +24,7 @@ end
 
 function makeham(N, nup, ndn;t = -1.0,  U = 0.0)
 
-#    println("setup_code")
+    #    println("setup_code")
     begin
         ind2codeUP, code2indUP =  setup_code(N,nup)
         ind2codeDN, code2indDN =  setup_code(N,ndn)
@@ -36,7 +36,7 @@ function makeham(N, nup, ndn;t = -1.0,  U = 0.0)
     ind2code = Dict{Int64, Vector{Bool}}()
     code2ind = Dict{Vector{Bool}, Int64}()
 
-#    println(keys(
+    #    println(keys(
 
     
     c=0
@@ -50,7 +50,7 @@ function makeham(N, nup, ndn;t = -1.0,  U = 0.0)
             c+=1
             ind2code[c] = v
             code2ind[v] = c
-(        end
+        end
     end
 
     H = Ham(N, nup, ndn,c, ind2code, code2ind, spzeros(c,c))
@@ -220,4 +220,5 @@ end
 
 
 
-end #end module
+         end #end module
+         
