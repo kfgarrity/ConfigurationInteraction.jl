@@ -46,6 +46,33 @@ function KE_spin(N; t=-1.0, var_type = Float64)#
     
 end
 
+function V_matrix(N; U=0.0, var_type = Float64)#
+
+    V = zeros(var_type, (N*2)^2, (N*2)^2)
+    for i = 1:2:(2*N)
+        for j = 1:2:(2*N)
+            a = i
+            b = i+1
+            c = j
+            d = j+1
+            V[ (a-1)*(2*N) + b,  (c-1)*(2*N) + d] = U
+
+            a = i+1
+            b = i
+            c = j+1
+            d = j
+            V[ (a-1)*(2*N) + b,  (c-1)*(2*N) + d] = U
+
+
+        end
+    end
+                       
+    return V
+    
+
+end
+
+
 function addU(rho, N; U=0.0, V=missing)
 
     
@@ -202,6 +229,6 @@ function solveHF(H_HF::HF; rho=missing, mix = 0.25, maxiter = 100)
     return energy, vals_up, vals_dn, rho, H_HF, Hup, Hdn
 
 end
-    
+
     
 end #end module
