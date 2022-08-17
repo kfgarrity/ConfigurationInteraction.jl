@@ -11,6 +11,7 @@ struct HF
     rho::Array{Float64, 2}
     U::Float64
     t::Float64
+    energyU::Array{Float64, 1}
 end
 
 Base.show(io::IO, H::HF) = begin
@@ -96,6 +97,8 @@ function makeHF(N, nup, ndn; rho = missing, t = -1.0, U = 0.0)
         rho = zeros(N, 2)
     end
 
+    Tsp = KE(N, t=t)
+    
     T =  KE_spin(N, t=t)
     V = addU(rho, N, U=U)
 
@@ -104,7 +107,7 @@ function makeHF(N, nup, ndn; rho = missing, t = -1.0, U = 0.0)
 
     H = T + V
     
-    return HF(N, nup, ndn, H, T, V, rho, U, t)
+    return HF(N, nup, ndn, H, T, V, rho, U, t, [-99.0])
     
 end
 
@@ -156,6 +159,9 @@ function solveHF(H_HF::HF; rho=missing, mix = 0.25, maxiter = 100)
     vals_up = zeros(H_HF.N)
     vals_dn = zeros(H_HF.N)    
 
+    vects_up = zeros(Complex{Float64}, H_HF.N, H_HF.N)
+    vects_dn = zeros(Complex{Float64}, H_HF.N, H_HF.N)
+    
     println()
     for iter = 1:maxiter
 
@@ -225,8 +231,37 @@ function solveHF(H_HF::HF; rho=missing, mix = 0.25, maxiter = 100)
 
     println("energy ", energy)
     H_HF.rho[:,:] = rho[:,:]
+
+    H_HF.energyU[1] = energy_U
+
+        #=
+    vals_big = zeros(H_HF.N*2)
+    current_up = 1
+    current_dn = 1
+    vects_big = zeros(Complex{Float64}, H_HF.N*2, H_HF.N*2)
+    for i = 1:H_HF.N*2
+        if current_up > H_HF.N
+            vals_big[i] = vals_up[current_dn]
+            vects_big[2:2:H_HF.N*2,i] = vects_dn[:,current_dn]
+            current_dn += 1
+        elseif current_dn > H_HF.N
+            vals_big[i] = vals_up[current_up]
+            vects_big[1:2:H_HF.N*2,i] = vects_up[:,current_up]
+            current_up += 1
+        elseif vals_up[current_up] <= vals_dn[current_dn]
+            vals_big[i] = vals_up[current_up]
+            vects_big[1:2:H_HF.N*2,i] = vects_up[:,current_up]
+            current_up += 1
+        else
+            vals_big[i] = vals_up[current_dn]
+            vects_big[2:2:H_HF.N*2,i] = vects_dn[:,current_dn]
+            current_dn += 1
+        end
+            
+    end
+  =#  
     
-    return energy, vals_up, vals_dn, rho, H_HF, Hup, Hdn
+    return energy, vals_up, vals_dn, vects_up, vects_dn, rho, H_HF, Hup, Hdn
 
 end
 

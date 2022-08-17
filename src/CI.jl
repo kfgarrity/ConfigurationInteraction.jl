@@ -1,5 +1,6 @@
 module CI
 using ..HartreeFock:HF
+using LinearAlgebra
 
 function tensor(vup,vdn)
     V = []
@@ -69,6 +70,34 @@ function generate_excitations_spin(N, nup, ndn, nexcite)
         
         return vcat(V1, V2, V3, V4)
 
+    elseif nexcite == 4
+
+        vup = collect(generate_excitations(nup, N-nup, 4))
+        vdn = collect(generate_excitations(ndn, N-ndn, 0))
+        V1 = tensor(vup, vdn)
+
+        vup = collect(generate_excitations(nup, N-nup, 0))
+        vdn = collect(generate_excitations(ndn, N-ndn, 4))
+        V2 = tensor(vup, vdn)
+
+        vup = collect(generate_excitations(nup, N-nup, 3))
+        vdn = collect(generate_excitations(ndn, N-ndn, 1))
+        V3 = tensor(vup, vdn)
+
+        vup = collect(generate_excitations(nup, N-nup, 1))
+        vdn = collect(generate_excitations(ndn, N-ndn, 3))
+        V4 = tensor(vup, vdn)
+
+        vup = collect(generate_excitations(nup, N-nup, 2))
+        vdn = collect(generate_excitations(ndn, N-ndn, 2))
+        V5 = tensor(vup, vdn)
+        
+        return vcat(V1, V2, V3, V4, V5)
+        
+
+    else
+        println("generate_excitations_spin $nexcite too large")
+        return [[],[]]
     end
 
         
@@ -83,7 +112,7 @@ function generate_excitations(nv, nc, nexcite)
         vstart[i] = true
     end
 
-    println("vstart ", vstart)
+#    println("vstart ", vstart)
     
     if nexcite == 0
         return Set([vstart])
@@ -215,24 +244,113 @@ function generate_excitations(nv, nc, nexcite)
     
 end
 
+function construct_ham(H_HF::HF,vals_up, vals_dn, vects_up, vects_dn, nexcite)
 
-function matrix_el(H_HF::HF, vects, vals, v1, v2)
+
+    #get vectors
+    V = []
+    @time for nex = 0:nexcite
+        println("nex $nex")
+        v = generate_excitations_spin(H_HF.N, H_HF.nup, H_HF.ndn, nex)
+        for vv in v
+            println(vv)
+        end
+        V = vcat(V, v)
+        
+    end
+#    println("--")
+#    println()
+
+#    println("length(V) ", length(V))
+    H = zeros(Complex{Float64}, length(V), length(V))
+
+    Tspin = H_HF.T[1:2:(2*H_HF.N), 1:2:(2*H_HF.N)]
+
+    Vup = H_HF.V[1:2:end, 1:2:end]
+    Vdn = H_HF.V[2:2:end, 2:2:end]
+    
+    @time for (i, v1) in enumerate(V)
+        for (j, v2) in enumerate(V)
+#            println("i $i j $j")
+            H[i,j] = matrix_el(H_HF, vals_up, vals_dn, vects_up, vects_dn, v1,v2, Tspin, Vup, Vdn)
+        end
+    end
+
+    H += I*H_HF.energyU[1]
+    
+    
+    return H
+        
+    
+end
+
+
+function matrix_el(H_HF::HF, vals_up, vals_dn, vects_up, vects_dn, v1, v2, Tspin, Vup, Vdn)
 
 #    v1bit = make_bitvec(v1, H_HF.N)
 #    v2bit = make_bitvec(v2, H_HF.N)
 
-    count, locs = find_diff(v1,v2)
+    count_up, locs_up = find_diff(v1[1],v2[1])
+    count_dn, locs_dn = find_diff(v1[2],v2[2])
 
-    if count == 0
-        matrix_el = sum(vals .* v1)
-    elseif count == 1
-        matrix_el = onediff(locs, vects, vals, H_HF)
-    end
+    count = count_up + count_dn
     
+    nup = H_HF.nup
+
+    matrix_el = 0.0
+#    println("v1 ", v1, " v2 ", v2)
+ #   println("count $count")
+    if count == 0
+        matrix_el = sum(vals_up .* v1[1]) + sum(vals_dn .* v1[2])
+
+    elseif count == 2
+        if count_up == 2
+            matrix_el = matrixel_1diff(vects_up, locs_up, Tspin, Vup)
+        elseif count_dn == 2
+            matrix_el = matrixel_1diff(vects_dn, locs_dn, Tspin, Vdn)
+        elseif count
+            matrix_el = 0.0
+            println("likely error $count_up $count_dn $count")
+        end
+
+    elseif count == 4
+        if count_up == 2 && count_dn == 2
+            matrix_el = matrixel_2diff(vects_up, vects_dn, locs_up, locs_dn, H_HF.U)
+        elseif count_up == 4
+            matrix_el = 0.0
+        elseif count_dn == 4
+            matrix_el == 0.0
+        else
+            matrix_el = 0.0
+            println("likely error $count_up $count_dn $count")
+        end
+
+    else
+        matrix_el = 0.0
+    end
+#    println("matix_el $matrix_el")
+    return matrix_el
 
 end
 
-function onediff(locs, vects, vals, H_HF)
+function matrixel_1diff(vects, locs, T, V)
+    matel = real( vects[:,locs[1]]' * T * vects[:,locs[2]])
+    matel += real( vects[:,locs[1]]' * V * vects[:,locs[2]])
+    return matel
+end
+
+function matrixel_2diff(vects_up, vects_dn, locs_up, locs_dn, U)
+    N = size(vects_up)[1]
+    matel = 0.0
+    for i = 1:N
+        matel += vects_up[i,locs_up[1]] * vects_dn[i,locs_dn[1]] * vects_up[i,locs_up[2]] * vects_dn[i,locs_dn[2]]
+    end
+    
+    return matel*U 
+end
+
+#=
+function matrixel_1diff(vects, locs, T, V)
 
     #kinetic
     T = vects[:,locs[1]]' * H_HF.T * vects[:,locs[2]]
@@ -244,6 +362,7 @@ function onediff(locs, vects, vals, H_HF)
     end
     return T + V
 end
+=#
 
 function twodiff(locs, vects, vals, H_HF)
     V = twobody(vects, locs[1], n, locs[2], n)
