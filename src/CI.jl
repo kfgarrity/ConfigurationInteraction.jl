@@ -268,6 +268,15 @@ function construct_ham(H_HF::HF,vals_up, vals_dn, vects_up, vects_dn, nexcite)
 
     Vup = H_HF.V[1:2:end, 1:2:end]
     Vdn = H_HF.V[2:2:end, 2:2:end]
+
+#    println("V")
+#    println(H_HF.V)
+#    println("Tspin ")
+#    println(Tspin)
+#    println("Vup")
+#    println(Vup)
+#    println("Vdn")
+#    println(Vdn)
     
     @time for (i, v1) in enumerate(V)
         for (j, v2) in enumerate(V)
@@ -276,7 +285,7 @@ function construct_ham(H_HF::HF,vals_up, vals_dn, vects_up, vects_dn, nexcite)
         end
     end
 
-    H += I*H_HF.energyU[1]
+#    H += I*H_HF.energyU[1]
     
     
     return H
@@ -299,15 +308,28 @@ function matrix_el(H_HF::HF, vals_up, vals_dn, vects_up, vects_dn, v1, v2, Tspin
 
     matrix_el = 0.0
 #    println("v1 ", v1, " v2 ", v2)
- #   println("count $count")
+    println("count $count")
     if count == 0
-        matrix_el = sum(vals_up .* v1[1]) + sum(vals_dn .* v1[2])
+#        matrix_el = sum(vals_up .* v1[1]) + sum(vals_dn .* v1[2])
+#        matrix_el = matrixel_0diff(vects_up, locs_up, Tspin, Vup)
 
+        matrix_el = matrixel_0diff(vects_up, vects_dn, v1[1], v1[2], Tspin, Tspin, H_HF.U)        
+        
     elseif count == 2
+
+        sign = 1.0
+        
+        
         if count_up == 2
-            matrix_el = matrixel_1diff(vects_up, locs_up, Tspin, Vup)
+
+#            sign = (-1.0)^sum( v2[1][minimum(locs_up)+1:maximum(locs_up)-1])
+#            if sign ≈ -1.0
+#                println("sign $sign")
+#            end
+            matrix_el = matrixel_1diff(vects_up, locs_up,vects_dn,Tspin, H_HF.U, v1[2])
         elseif count_dn == 2
-            matrix_el = matrixel_1diff(vects_dn, locs_dn, Tspin, Vdn)
+            #sign = (-1.0)^sum( v2[2][minimum(locs_dn)+1:maximum(locs_dn)-1])
+            matrix_el = matrixel_1diff(vects_dn, locs_dn,vects_up, Tspin, H_HF.U, v1[1])
         elseif count
             matrix_el = 0.0
             println("likely error $count_up $count_dn $count")
@@ -315,6 +337,7 @@ function matrix_el(H_HF::HF, vals_up, vals_dn, vects_up, vects_dn, v1, v2, Tspin
 
     elseif count == 4
         if count_up == 2 && count_dn == 2
+
             matrix_el = matrixel_2diff(vects_up, vects_dn, locs_up, locs_dn, H_HF.U)
         elseif count_up == 4
             matrix_el = 0.0
@@ -333,19 +356,54 @@ function matrix_el(H_HF::HF, vals_up, vals_dn, vects_up, vects_dn, v1, v2, Tspin
 
 end
 
-function matrixel_1diff(vects, locs, T, V)
+function matrixel_0diff(vects_up, vects_dn, v1up, v1dn, Tup, Tdn, U)
+
+    matel = 0.0
+    N = size(vects_up)[1]
+    for i=1:N
+        matel += v1up[i]* vects_up[:,i]' *Tup*vects_up[:,i]
+        matel += v1dn[i]* vects_dn[:,i]' *Tdn*vects_dn[:,i]
+    end
+
+#    println("KE ", matel)
+    
+    for a = 1:N
+        for b = 1:N
+            #            for i=1:N
+            for i = 1:N
+                matel += v1up[a]*v1dn[b]*U*vects_up[i,a] * vects_dn[i,b] * vects_up[i,a] * vects_dn[i,b]
+#                println("MMM $a $b $i ", v1up[a]*v1dn[b]*U*vects_up[i,a] * vects_dn[i,b] * vects_up[i,a] * vects_dn[i,b])
+            end
+        end
+    end
+    return matel
+    
+    
+end
+
+function matrixel_1diff(vects, locs,vects2, T, U, v)
     matel = real( vects[:,locs[1]]' * T * vects[:,locs[2]])
-    matel += real( vects[:,locs[1]]' * V * vects[:,locs[2]])
+    N = size(vects)[1]
+    for a = 1:N
+        for i = 1:N
+            matel += v[a]*U*vects[i,locs[1]] * vects2[i,a] * vects[i,locs[2]] * vects2[i,a]
+        end
+    end
+    
+    #    matel += real( vects[:,locs[1]]' * V * vects[:,locs[2]])
     return matel
 end
 
 function matrixel_2diff(vects_up, vects_dn, locs_up, locs_dn, U)
     N = size(vects_up)[1]
     matel = 0.0
+#    println("matrixel_2diff")
+    #    for i = 1:N
     for i = 1:N
         matel += vects_up[i,locs_up[1]] * vects_dn[i,locs_dn[1]] * vects_up[i,locs_up[2]] * vects_dn[i,locs_dn[2]]
+#        println("$i $(vects_up[i,locs_up[1]] * vects_dn[i,locs_dn[1]] * vects_up[i,locs_up[2]] * vects_dn[i,locs_dn[2]])")
     end
-    
+#    println("final ", matel*U)
     return matel*U 
 end
 

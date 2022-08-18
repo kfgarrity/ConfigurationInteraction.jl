@@ -47,31 +47,32 @@ function KE_spin(N; t=-1.0, var_type = Float64)#
     
 end
 
-function V_matrix(N; U=0.0, var_type = Float64)#
 
-    V = zeros(var_type, (N*2)^2, (N*2)^2)
-    for i = 1:2:(2*N)
-        for j = 1:2:(2*N)
-            a = i
-            b = i+1
-            c = j
-            d = j+1
-            V[ (a-1)*(2*N) + b,  (c-1)*(2*N) + d] = U
-
-            a = i+1
-            b = i
-            c = j+1
-            d = j
-            V[ (a-1)*(2*N) + b,  (c-1)*(2*N) + d] = U
-
-
-        end
-    end
-                       
-    return V
-    
-
-end
+#function V_matrix(N; U=0.0, var_type = Float64)#
+#
+#    V = zeros(var_type, (N*2)^2, (N*2)^2)
+#    for i = 1:2:(2*N)
+#        for j = 1:2:(2*N)
+#            a = i
+#            b = i+1
+#            c = j
+#            d = j+1
+#            V[ (a-1)*(2*N) + b,  (c-1)*(2*N) + d] = U
+#
+#            a = i+1
+#            b = i
+#            c = j+1
+#            d = j
+#            V[ (a-1)*(2*N) + b,  (c-1)*(2*N) + d] = U
+#
+#
+#        end
+#    end
+#                       
+#    return V
+#    
+#
+#end
 
 
 function addU(rho, N; U=0.0, V=missing)
@@ -82,6 +83,7 @@ function addU(rho, N; U=0.0, V=missing)
     end
 
     for (c,j) = enumerate(1:2:N*2)
+
         V[j, j] = U * rho[c,2]
         V[j+1, j+1] = U * rho[c,1]
     end
@@ -111,7 +113,7 @@ function makeHF(N, nup, ndn; rho = missing, t = -1.0, U = 0.0)
     
 end
 
-function solveHF(H_HF::HF; rho=missing, mix = 0.25, maxiter = 100)
+function solveHF(H_HF::HF; rho=missing, mix = 0.25, maxiter = 500)
 
     if ismissing(rho)
         rho = deepcopy(H_HF.rho)
@@ -190,7 +192,7 @@ function solveHF(H_HF::HF; rho=missing, mix = 0.25, maxiter = 100)
 
         
 #        println("rho_new ", rho_new)
-        if sum(abs.(rho_new - rho)) < 1e-9
+        if sum(abs.(rho_new - rho)) < 1e-11
             println()
             println("convergence reached $iter ")
             println()
@@ -223,6 +225,7 @@ function solveHF(H_HF::HF; rho=missing, mix = 0.25, maxiter = 100)
     #add in the U energy
     energy_U = 0.0
     for i = 1:H_HF.N
+    #for i = [1]
         energy_U += -H_HF.U * rho[i,1]*rho[i,2]
     end
 
@@ -234,6 +237,8 @@ function solveHF(H_HF::HF; rho=missing, mix = 0.25, maxiter = 100)
 
     H_HF.energyU[1] = energy_U
 
+    H_HF.V[:,:] = addU(rho, H_HF.N, U=H_HF.U, V=V)
+    
         #=
     vals_big = zeros(H_HF.N*2)
     current_up = 1

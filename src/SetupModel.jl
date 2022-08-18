@@ -44,7 +44,7 @@ function makeham(N, nup, ndn;t = -1.0,  U = 0.0)
     for iup = 1:Lup
         for idn = 1:Ldn
             v = zeros(Bool, 2*N)
-            #println("i $iup $idn $c")
+#            println("i $iup $idn $c ", ind2codeUP[iup], " " , ind2codeDN[idn])
             v[1:N]     = ind2codeUP[iup]
             v[N+1:end] = ind2codeDN[idn]
             c+=1
@@ -113,6 +113,7 @@ function addU(H::Ham, U)
     toaddval = Float64[]
     for i = 1:H.dim
 
+
         v = H.ind2code[i]
         s = sum(v[1:H.N] .&& v[H.N+1:end])
         if s > 0
@@ -160,7 +161,7 @@ function addKE(H, t)
                     else
                         thesign = (-1)^sum(v[spf .+ (1:nind-1)])
                     end                        
-
+                    
                     push!(toadd1, i)
                     push!(toadd2, i2)
                     push!(toaddval, t/2.0 * thesign)
