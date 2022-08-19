@@ -244,21 +244,21 @@ function generate_excitations(nv, nc, nexcite)
     
 end
 
-function construct_ham(H_HF::HF,vals_up, vals_dn, vects_up, vects_dn, nexcite)
+function construct_ham(H_HF::HF, vects_up, vects_dn, nexcite)
 
 
     #get vectors
     V = []
     @time for nex = 0:nexcite
-        println("nex $nex")
         v = generate_excitations_spin(H_HF.N, H_HF.nup, H_HF.ndn, nex)
-        for vv in v
-            println(vv)
-        end
+        println("nex $nex $(length(v))")
+#        for vv in v
+#            println(vv)
+#        end
         V = vcat(V, v)
         
     end
-#    println("--")
+    println("--")
 #    println()
 
 #    println("length(V) ", length(V))
@@ -281,7 +281,7 @@ function construct_ham(H_HF::HF,vals_up, vals_dn, vects_up, vects_dn, nexcite)
     @time for (i, v1) in enumerate(V)
         for (j, v2) in enumerate(V)
 #            println("i $i j $j")
-            H[i,j] = matrix_el(H_HF, vals_up, vals_dn, vects_up, vects_dn, v1,v2, Tspin, Vup, Vdn)
+            H[i,j] = matrix_el(H_HF, vects_up, vects_dn, v1,v2, Tspin, Vup, Vdn)
         end
     end
 
@@ -294,7 +294,7 @@ function construct_ham(H_HF::HF,vals_up, vals_dn, vects_up, vects_dn, nexcite)
 end
 
 
-function matrix_el(H_HF::HF, vals_up, vals_dn, vects_up, vects_dn, v1, v2, Tspin, Vup, Vdn)
+function matrix_el(H_HF::HF, vects_up, vects_dn, v1, v2, Tspin, Vup, Vdn)
 
 #    v1bit = make_bitvec(v1, H_HF.N)
 #    v2bit = make_bitvec(v2, H_HF.N)
@@ -308,7 +308,7 @@ function matrix_el(H_HF::HF, vals_up, vals_dn, vects_up, vects_dn, v1, v2, Tspin
 
     matrix_el = 0.0
 #    println("v1 ", v1, " v2 ", v2)
-    println("count $count")
+#    println("count $count")
     if count == 0
 #        matrix_el = sum(vals_up .* v1[1]) + sum(vals_dn .* v1[2])
 #        matrix_el = matrixel_0diff(vects_up, locs_up, Tspin, Vup)
@@ -322,14 +322,16 @@ function matrix_el(H_HF::HF, vals_up, vals_dn, vects_up, vects_dn, v1, v2, Tspin
         
         if count_up == 2
 
-#            sign = (-1.0)^sum( v2[1][minimum(locs_up)+1:maximum(locs_up)-1])
+            sign = (-1.0)^sum( v2[1][minimum(locs_up)+1:maximum(locs_up)-1])
 #            if sign ≈ -1.0
 #                println("sign $sign")
 #            end
-            matrix_el = matrixel_1diff(vects_up, locs_up,vects_dn,Tspin, H_HF.U, v1[2])
+#            sign = 1.0
+            matrix_el = sign*matrixel_1diff(vects_up, locs_up,vects_dn,Tspin, H_HF.U, v1[2])
         elseif count_dn == 2
-            #sign = (-1.0)^sum( v2[2][minimum(locs_dn)+1:maximum(locs_dn)-1])
-            matrix_el = matrixel_1diff(vects_dn, locs_dn,vects_up, Tspin, H_HF.U, v1[1])
+            sign = (-1.0)^sum( v2[2][minimum(locs_dn)+1:maximum(locs_dn)-1])
+#            sign = 1.0
+            matrix_el = sign*matrixel_1diff(vects_dn, locs_dn,vects_up, Tspin, H_HF.U, v1[1])
         elseif count
             matrix_el = 0.0
             println("likely error $count_up $count_dn $count")
@@ -338,7 +340,10 @@ function matrix_el(H_HF::HF, vals_up, vals_dn, vects_up, vects_dn, v1, v2, Tspin
     elseif count == 4
         if count_up == 2 && count_dn == 2
 
-            matrix_el = matrixel_2diff(vects_up, vects_dn, locs_up, locs_dn, H_HF.U)
+            sign =      (-1.0)^sum( v2[1][minimum(locs_up)+1:maximum(locs_up)-1])
+            sign = sign*(-1.0)^sum( v2[2][minimum(locs_dn)+1:maximum(locs_dn)-1])
+            
+            matrix_el = sign* matrixel_2diff(vects_up, vects_dn, locs_up, locs_dn, H_HF.U)
         elseif count_up == 4
             matrix_el = 0.0
         elseif count_dn == 4

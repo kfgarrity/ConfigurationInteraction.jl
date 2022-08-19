@@ -7,9 +7,9 @@ using ..SetupModel:Ham
 
 
 #simple arpack wrapper
-function eig(H::Ham; neig=-1)
+function eig(H::Ham; neig=-1, dense=false)
 
-    if H.dim < 100
+    if H.dim < 100 || dense == true
         return vals, vects = eigen( Array(H.H))
     end
     
